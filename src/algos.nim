@@ -73,6 +73,12 @@ func canGo(
     loc      in    map  and 
     map[loc] !=    wall    
 
+iterator neighbors(loc: Location, map: Map[Cell]): Location = 
+    for m in moves:
+        let n = loc + m
+        if n.canGo map:
+            yield n
+
 
 proc dfsImpl(
     map: Map[Cell], 
@@ -81,16 +87,14 @@ proc dfsImpl(
     path:   var Path,
     result: var ResultPack
 ) = 
+    add  result.visits, current
     incl seen, current
 
     if current == goal:
         result.finalPath = some path 
     else:
-        for m in moves:
-            let loc = current + m
-            if  loc.canGo(map) and 
-                loc notin seen:
-                add     result.visits, loc
+        for loc in current.neighbors map:
+            if  loc notin seen:
                 add     path, loc
                 dfsImpl map, loc, goal, seen, path, result
                 popd    path
@@ -103,12 +107,11 @@ proc dfs*(map: Map[Cell], journey: Journey): ResultPack =
 
 
 proc follow(tail, head: Location, track: Table[Location, Location]): Path = 
-    var c   = tail
+    var c = tail
     add result, c
     while c != head:
         c = track[c]
         add result, c
-
     reverse result
 
 proc bfs*(map: Map[Cell], journey: Journey): ResultPack = 
@@ -116,7 +119,8 @@ proc bfs*(map: Map[Cell], journey: Journey): ResultPack =
         track: Table[Location, Location]
         queue = initDeque[Location]()
 
-    addfirst queue, journey.a
+    track[journey.a] = journey.a
+    addfirst queue,    journey.a
     while not empty queue: 
         let c = popLast queue
         add result.visits, c
@@ -124,10 +128,8 @@ proc bfs*(map: Map[Cell], journey: Journey): ResultPack =
             result.finalPath = some follow(journey.b, journey.a, track)
             return
         else:
-            for m in moves:
-                let n = c + m
-                if  n.canGo(map) and 
-                    n notin track:
+            for n in c.neighbors map:
+                if  n notin track:
                     addlast queue, n
                     track[n] = c
 
@@ -156,7 +158,7 @@ when isMainModule:
         b = bfs(  map, journey)
         a = aStar(map, journey)
 
-    print journey
+    echo journey
     print d
     print b
     print a
