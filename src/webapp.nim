@@ -3,31 +3,50 @@ import ./algos
 
 include karax/prelude
 
-type AppStates = object
-  selectedAlgo: string
-  map: Map[Cell]
-  rows, cols: Positive
+# 00000 -----
 
-  hoverCell: Option[Location]
-  clicked: bool
+type 
+  Tool = enum
+    putWall
+    putGoal
+    putStart
+    erase
+
+  AppStates = object
+    selectedAlgo: string
+    tool: Tool
+    map: Map[Cell]
+    rows, cols: Positive
+
+    hoverCell: Option[Location]
+    clicked: bool
+
+# 00000 -----
+
+var app = AppStates(
+  selectedAlgo: "DFS",
+  map: initMap(10, 10, free),
+  tool: 
+  rows: 10,
+  cols: 10,
+  clicked: false,
+)
 
 let pathFindingAlgos = {
   "DFS": dfs,
   "BFS": bfs,
   "A*":  aStar}
 
-func initMap[T](rows, cols: Positive, init: T): Map[T] =
-  newSeqWith rows, newSeqWith(cols, init)
+# ???? -----
 
-var app = AppStates(
-  selectedAlgo: "DFS",
-  map: initMap(10, 10, free),
-  rows: 10,
-  cols: 10,
-  clicked: false,
-)
+template genSetter(name, typ, expr): untyped = 
+  proc name(a: typ) = 
+    expr = a
 
-# UI
+genSetter setCols, int, app.cols
+genSetter setRows, int, app.rows
+
+# UI -----
 
 template `%`(a): untyped = cstring $a
 
@@ -53,13 +72,6 @@ proc spann(lbl: cstring): Vnode =
     span(class="me-2"):
       text lbl
 
-template genSetter(name, typ, expr): untyped = 
-  proc name(a: typ) = 
-    expr = a
-
-genSetter setCols, int, app.cols
-genSetter setRows, int, app.rows
-
 proc genCell(row, col: int): VNode = 
   buildHtml:
     tdiv(class="map-cell no-select pointer d-inline-block border border-light"):
@@ -79,7 +91,7 @@ proc genCell(row, col: int): VNode =
         if app.clicked:
           echo (row, col)
 
-proc createDom(): VNode =
+proc createDom: VNode =
   buildHtml tdiv:
     nav(class="navbar navbar-expand-lg bg-dark d-flex justify-content-center py-1"):
       span(class="navbar-brand text-white"):
@@ -101,8 +113,9 @@ proc createDom(): VNode =
         for y, row in app.map:
           tdiv(class="d-block"):
             for x, cell in row:
-              genCell y, x
+              genCell y, x, cell, is
 
+# entry point -----
 
 when isMainModule:
   setRenderer createDom
