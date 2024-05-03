@@ -73,7 +73,7 @@ func width*(map: Map): Natural =
 func height*(map: Map): Natural = 
     len map
 
-func contains(map: Map, loc: Location): bool = 
+func contains*(map: Map, loc: Location): bool = 
     loc.row in 0 ..< map.height and
     loc.col in 0 ..< map.width 
 
@@ -82,10 +82,6 @@ func `[]`*[T](map: Map[T], loc: Location): T =
 
 func `[]=`*[T](map: var Map[T], loc: Location, val: T) = 
     map[loc.row][loc.col] = val
-
-
-template unnamed(path): untyped =
-    cast[seq[(int, int)]](path)
 
 # helpers ------
 

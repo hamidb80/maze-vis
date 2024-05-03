@@ -1,10 +1,10 @@
-import std/[strutils, sequtils, options, random, tables]
+import std/[strutils, options, random, tables]
 import ./algos
 
 import std/jscore
 include karax/prelude
 
-# 00000 -----
+# types -----
 
 type 
   Tool = enum
@@ -28,17 +28,36 @@ type
     path:         Option[Path]
     benchmark:    Natural
 
-# 00000 -----
+# js ------
 
-randomize()
+template `%`(a): untyped = cstring $a
+
+template timeit(res, body): untyped = 
+  let t1 = Date.now
+  body
+  let t2 = Date.now
+  let res = t2 - t1
+
+# utils -----
 
 proc randomLocation(rows, cols: Positive, offset = 1): Location = 
   (rand offset ..< rows-offset, rand offset ..< cols-offset)
+
+# globals -----
+
+randomize()
 
 const 
   C = 10
   R = 10
   sizeLimit = 100
+
+let pathFindingAlgos = toOrderedTable {
+  %"DFS": dfs,
+  %"BFS": bfs,
+  %"A*":  aStar}
+
+# state management -----
 
 var app = AppStates(
   selectedAlgo: "DFS",
@@ -48,27 +67,34 @@ var app = AppStates(
   tool:         putWall, 
   start:        randomLocation(R, C), 
   goal:         randomLocation(R, C),
-  clicked:      false,
-)
+  clicked:      false)
 
-template `%`(a): untyped = cstring $a
+proc cleanErrors = 
+  for loc in [app.start, app.goal]:
+    app.map[loc] = free
 
-let pathFindingAlgos = toOrderedTable {
-  %"DFS": dfs,
-  %"BFS": bfs,
-  %"A*":  aStar}
+proc randomJourney = 
+  app.start = randomLocation(app.rows, app.cols) 
+  app.goal = randomLocation(app.rows, app.cols) 
+  cleanErrors()
 
-# ???? -----
+proc regenerateMap = 
+  proc fromPast(row, col: int): Cell = 
+    let loc = (row, col)
+    if loc in app.map: app.map[loc]
+    else:              free
 
-template timeit(res, body): untyped = 
-  let t1 = Date.now
-  body
-  let t2 = Date.now
-  let res = t2 - t1
+  app.map = initMap[Cell](app.rows, app.cols, fromPast)
+  if app.start notin app.map or app.goal notin app.map:
+    randomJourney()
+    
+proc resetPath = 
+    reset app.visits
+    reset app.path
 
 # UI -----
 
-proc slider(rng: Slice[int], init: int, setter: proc(a: int)): Vnode = 
+proc rangedInput(rng: Slice[int], init: int, setter: proc(a: int)): Vnode = 
   buildHtml tdiv(class="col-sm-10"):
     input(type= "number", class= "form-control", 
       min=    %rng.a,
@@ -84,7 +110,7 @@ proc spann(lbl: cstring): Vnode =
     span(class="me-2"):
       text lbl
 
-proc genCell(row, col: int, cls, lbl: cstring, action: proc(loc: Location)): VNode = 
+proc cellComponent(row, col: int, cls, lbl: cstring, action: proc(loc: Location)): VNode = 
   buildHtml:
     tdiv(class="map-cell d-inline-block border no-select pointer " & cls):
       span:
@@ -106,22 +132,6 @@ proc genCell(row, col: int, cls, lbl: cstring, action: proc(loc: Location)): VNo
       proc onclick = 
         action (row, col)
 
-proc cleanErrors = 
-  for loc in [app.start, app.goal]:
-    app.map[loc] = free
-
-proc randomJourney = 
-  app.start = randomLocation(app.rows, app.cols) 
-  app.goal = randomLocation(app.rows, app.cols) 
-  cleanErrors()
-
-proc regenerateMap = 
-  app.map   = initMap(app.rows, app.cols, free)
-  randomJourney()
-    
-proc resetPath = 
-    reset app.visits
-    reset app.path
 
 proc createDom: VNode =
   proc action(l: Location) = 
@@ -141,13 +151,13 @@ proc createDom: VNode =
       tdiv(class="d-flex justify-content-space-between flex-row"):
         tdiv(class="w-100 d-flex align-items-center"):
           spann "cols"
-          slider 1..sizeLimit, app.cols, proc(val: int) = 
+          rangedInput 3..sizeLimit, app.cols, proc(val: int) = 
             app.cols = val
             regenerateMap()
 
         tdiv(class="w-100 d-flex align-items-center"):
           spann "rows"
-          slider 1..sizeLimit, app.rows, proc(val: int) = 
+          rangedInput 3..sizeLimit, app.rows, proc(val: int) = 
             app.rows = val
             regenerateMap()
 
@@ -205,20 +215,23 @@ proc createDom: VNode =
           text "Random"
 
           proc onclick = 
+            let treshold = rand 0.0 .. 0.3
+
+            proc cellValue(row, col: int): Cell = 
+              if   row in [0, app.rows-1]:      wall
+              elif col in [0, app.cols-1]:      wall
+              elif treshold < rand 0.0 .. 1.0:  free
+              else:                             wall
+
+            app.map = initMap(app.rows, app.cols, cellValue)
+            randomJourney()
             resetPath()
 
-            let treshold = rand 0.0 .. 0.3
-            for y, row in app.map:
-              for x, _ in row:
+        button(class = "btn btn-warning w-100 mx-3"):
+          text "Clear"
 
-                app.map[y][x] = 
-                  if   y in [0, app.map.height-1] or x in [0, row.len-1]: wall
-                  elif treshold < rand 0.0 .. 1.0:                        free
-                  else:                                                   wall
-              
-              cleanErrors()
-          
-            randomJourney()
+          proc onclick = 
+            app.map = initMap(app.rows, app.cols, free)
 
     main(class="p-4 d-flex justify-content-center"):
       tdiv(class="overflow-auto"):
@@ -239,7 +252,7 @@ proc createDom: VNode =
                   elif cell == wall:        "cell-filled"
                   else:                     "cell-empty"
 
-              genCell y, x, %cls, lbl, action
+              cellComponent y, x, %cls, lbl, action
 
 # entry point -----
 
