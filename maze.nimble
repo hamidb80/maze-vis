@@ -1,17 +1,17 @@
 # Package
 
-version       = "0.0.1"
+version       = "0.1.0"
 author        = "hamidb80"
 description   = "A* BFS DFS path finding visualization"
 license       = "MIT"
 srcDir        = "src"
-bin           = @["ai_path_finding"]
+bin           = @[]
 
 
 # Dependencies
 
 requires "nim >= 2.0.0"
-requires "karax"
+requires "karax <= 1.3.3"
 
 
 task gen, "builds js code":

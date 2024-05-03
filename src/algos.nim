@@ -155,10 +155,14 @@ proc plot(trip: Trip, rp: ResultPack): string =
                 else:                         '.'
         add result, '\n'
 
+template unnamed(locs): untyped =
+    cast[seq[(int, int)]](locs)
+
 # impl ------
 
 func dfsImpl(
     map: Map[Cell], 
+    remainingSteps: int, 
     current, goal: Location, 
     seen:   var HashSet[Location],
     path:   var Path,
@@ -170,19 +174,28 @@ func dfsImpl(
     if current == goal:
         result.finalPath = some path 
         return
-    else:
+    elif 0 < remainingSteps:
         for loc in current.neighbors map:
             if  loc notin seen:
                 add     path, loc
-                dfsImpl map, loc, goal, seen, path, result
+                dfsImpl map, remainingSteps - 1, loc, goal, seen, path, result
                 if issome result.finalPath: return
                 popd    path
-    
-func dfs*(map: Map[Cell], journey: Journey): ResultPack = 
+
+func dfsImpl(map: Map[Cell], maxDepth: int, journey: Journey): ResultPack = 
     var
         seen: HashSet[Location]
         path: Path = @[journey.a]
-    dfsImpl map, journey.a, journey.b, seen, path, result
+    dfsImpl map, maxDepth, journey.a, journey.b, seen, path, result
+
+func dfs*(map: Map[Cell], journey: Journey): ResultPack = 
+    dfsImpl map, map.width * map.height, journey
+
+func iddfs*(map: Map[Cell], journey: Journey): ResultPack =
+    for d in 1 .. map.width * map.height:
+        result = dfsImpl(map, d, journey)
+        if issome result.finalPath:
+            return
 
 
 func follow(tail, head: Location, 
@@ -241,6 +254,7 @@ func aStar*(map: Map[Cell], journey: Journey): ResultPack =
                     push queue, (next, newCost, newCost + asTheCrowFlies(next, journey.b))
                     track[next] = curr
 
+# test ------
 
 when isMainModule:
     let trip = initTrip """
@@ -249,7 +263,7 @@ when isMainModule:
         ..........#.
         ..........#.
         ..........#.
-        .S..E######.
+        .S...######.
         ............
     """
     echo trip.journey
@@ -258,7 +272,9 @@ when isMainModule:
         d = dfs(  trip.map, trip.journey)
         b = bfs(  trip.map, trip.journey)
         a = aStar(trip.map, trip.journey)
+        i = iddfs(trip.map, trip.journey)
 
-    echo "DFS\n", trip.plot d, unnamed d.visits
-    echo "BFS\n", trip.plot b, unnamed b.visits
-    echo "A* \n", trip.plot a, unnamed a.visits
+    echo "DFS   \n", trip.plot d, unnamed d.visits
+    echo "BFS   \n", trip.plot b, unnamed b.visits
+    echo "A*    \n", trip.plot a, unnamed a.visits
+    echo "IDDFS \n", trip.plot i, unnamed i.visits

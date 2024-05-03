@@ -53,9 +53,11 @@ const
   sizeLimit = 100
 
 let pathFindingAlgos = toOrderedTable {
-  %"DFS": dfs,
-  %"BFS": bfs,
-  %"A*":  aStar}
+  %"DFS":   dfs,
+  %"IDDFS": iddfs,
+  %"BFS":   bfs,
+  %"A*":    aStar,
+}
 
 # state management -----
 
@@ -186,16 +188,15 @@ proc createDom: VNode =
         if isNone app.path:
           h4(class="text-center text-info"):
             text "No path found!"
-        
-        else:
-          tdiv(class="d-flex justify-content-around"):
-            h5(class=""):
-              text "opened nodes: "
-              text %app.visits.len
-            h5(class=""):
-              text "time: "
-              text %app.benchmark
-              text "ms"
+
+        tdiv(class="d-flex justify-content-around"):
+          h5(class=""):
+            text "opened nodes: "
+            text %app.visits.len
+          h5(class=""):
+            text "time: "
+            text %app.benchmark
+            text "ms"
 
     main(class="px-4 py-1"):
       tdiv(class="d-flex justify-content-space-between flex-row"):
@@ -232,6 +233,7 @@ proc createDom: VNode =
 
           proc onclick = 
             app.map = initMap(app.rows, app.cols, free)
+            resetPath()
 
     main(class="p-4 d-flex justify-content-center"):
       tdiv(class="overflow-auto"):
