@@ -80,6 +80,9 @@ func contains(map: Map, loc: Location): bool =
 func `[]`*[T](map: Map[T], loc: Location): T = 
     map[loc.row][loc.col]
 
+func `[]=`*[T](map: var Map[T], loc: Location, val: T) = 
+    map[loc.row][loc.col] = val
+
 
 template unnamed(path): untyped =
     cast[seq[(int, int)]](path)

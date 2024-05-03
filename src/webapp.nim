@@ -79,12 +79,6 @@ proc slider(rng: Slice[int], init: int, setter: proc(a: int)): Vnode =
       proc onInput(ev: Event, n: VNode) =
         setter parseInt n.value
 
-proc pairlog(lbl: cstring, val: cstring): Vnode = 
-  buildHtml span:
-    text lbl
-    text ": "
-    text val
-
 proc spann(lbl: cstring): Vnode = 
   buildHtml:
     span(class="me-2"):
@@ -112,6 +106,19 @@ proc genCell(row, col: int, cls, lbl: cstring, action: proc(loc: Location)): VNo
       proc onclick = 
         action (row, col)
 
+proc cleanErrors = 
+  for loc in [app.start, app.goal]:
+    app.map[loc] = free
+
+proc randomJourney = 
+  app.start = randomLocation(app.rows, app.cols) 
+  app.goal = randomLocation(app.rows, app.cols) 
+  cleanErrors()
+
+proc regenerateMap = 
+  app.map   = initMap(app.rows, app.cols, free)
+  randomJourney()
+    
 proc resetPath = 
     reset app.visits
     reset app.path
@@ -136,13 +143,13 @@ proc createDom: VNode =
           spann "cols"
           slider 1..sizeLimit, app.cols, proc(val: int) = 
             app.cols = val
-            app.map = initMap(app.rows, app.cols, free)
+            regenerateMap()
 
         tdiv(class="w-100 d-flex align-items-center"):
           spann "rows"
           slider 1..sizeLimit, app.rows, proc(val: int) = 
             app.rows = val
-            app.map = initMap(app.rows, app.cols, free)
+            regenerateMap()
 
         tdiv(class="w-100 d-flex align-items-center"):
           spann "Algo"
@@ -187,10 +194,10 @@ proc createDom: VNode =
 
           proc onclick = 
             let algo  = pathFindingAlgos[app.selectedAlgo]
-            timeit res:
+            timeit time:
               let pack = algo(app.map, app.start .. app.goal)
             
-            app.benchmark = res
+            app.benchmark = time
             app.visits    = pack.visits
             app.path      = pack.finalPath
         
@@ -208,6 +215,10 @@ proc createDom: VNode =
                   if   y in [0, app.map.height-1] or x in [0, row.len-1]: wall
                   elif treshold < rand 0.0 .. 1.0:                        free
                   else:                                                   wall
+              
+              cleanErrors()
+          
+            randomJourney()
 
     main(class="p-4 d-flex justify-content-center"):
       tdiv(class="overflow-auto"):
