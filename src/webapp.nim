@@ -1,6 +1,7 @@
-import std/[strutils, sequtils, options]
+import std/[strutils, sequtils, options, random, tables]
 import ./algos
 
+import std/jscore
 include karax/prelude
 
 # 00000 -----
@@ -22,38 +23,48 @@ type
     hoverCell:    Option[Location]
     clicked:      bool
 
-    start, goal:   Location
-    visited:       seq[Location]
-    path:          Option[Path]
+    start, goal:  Location
+    visits:       seq[Location]
+    path:         Option[Path]
+    benchmark:    Natural
 
 # 00000 -----
 
+randomize()
+
+proc randomLocation(rows, cols: Positive, offset = 1): Location = 
+  (rand offset ..< rows-offset, rand offset ..< cols-offset)
+
+const 
+  C = 10
+  R = 10
+  sizeLimit = 100
+
 var app = AppStates(
   selectedAlgo: "DFS",
-  map: initMap(10, 10, free),
-  tool: putWall, 
-  start: (0, 0), 
-  goal:  (1, 1),
-  rows: 10,
-  cols: 10,
-  clicked: false,
+  rows:         R,
+  cols:         C,
+  map:          initMap(R, C, free),
+  tool:         putWall, 
+  start:        randomLocation(R, C), 
+  goal:         randomLocation(R, C),
+  clicked:      false,
 )
 
 template `%`(a): untyped = cstring $a
 
-let pathFindingAlgos = {
+let pathFindingAlgos = toOrderedTable {
   %"DFS": dfs,
   %"BFS": bfs,
   %"A*":  aStar}
 
 # ???? -----
 
-template genSetter(name, typ, expr): untyped = 
-  proc name(a: typ) = 
-    expr = a
-
-genSetter setCols, int, app.cols
-genSetter setRows, int, app.rows
+template timeit(res, body): untyped = 
+  let t1 = Date.now
+  body
+  let t2 = Date.now
+  let res = t2 - t1
 
 # UI -----
 
@@ -100,16 +111,19 @@ proc genCell(row, col: int, cls, lbl: cstring, action: proc(loc: Location)): VNo
 
       proc onclick = 
         action (row, col)
-        
+
+proc resetPath = 
+    reset app.visits
+    reset app.path
 
 proc createDom: VNode =
   proc action(l: Location) = 
     case app.tool
-    of putWall : app.map[l.row][l.col] = wall
-    of erase   : app.map[l.row][l.col] = free
-    of putGoal : app.start             = l
-    of putStart: app.goal              = l
-
+    of putWall:  app.map[l.row][l.col] = wall
+    of erase:    app.map[l.row][l.col] = free
+    of putStart: app.start             = l
+    of putGoal:  app.goal              = l
+    resetPath()
 
   buildHtml tdiv:
     nav(class="navbar navbar-expand-lg bg-dark d-flex justify-content-center py-1"):
@@ -117,29 +131,29 @@ proc createDom: VNode =
         text "A*, BFS, DFS, Visualization"
 
     main(class="p-4"):
-
       tdiv(class="d-flex justify-content-space-between flex-row"):
         tdiv(class="w-100 d-flex align-items-center"):
           spann "cols"
-          slider 1..50, app.cols, setCols
+          slider 1..sizeLimit, app.cols, proc(val: int) = 
+            app.cols = val
+            app.map = initMap(app.rows, app.cols, free)
 
         tdiv(class="w-100 d-flex align-items-center"):
           spann "rows"
-          slider 1..50, app.rows, setRows
+          slider 1..sizeLimit, app.rows, proc(val: int) = 
+            app.rows = val
+            app.map = initMap(app.rows, app.cols, free)
 
-      tdiv(class="d-flex justify-content-space-between flex-row"):
         tdiv(class="w-100 d-flex align-items-center"):
           spann "Algo"
           select(class="form-select", value = app.selectedAlgo):
-            for a in pathFindingAlgos:
+            for k, _ in pathFindingAlgos:
               option:
-                text a[0]
+                text k
 
             proc onInput(ev: Event, n: VNode) =
               app.selectedAlgo = n.value
             
-
-      tdiv(class="d-flex justify-content-space-between flex-row"):
         tdiv(class="w-100 d-flex align-items-center"):
           spann "Tool"
           select(class="form-select", value = %app.tool):
@@ -149,24 +163,68 @@ proc createDom: VNode =
 
             proc onInput(ev: Event, n: VNode) =
               app.tool = parseEnum[Tool]($n.value)
+
+    tdiv(class="px-4 py-1"):
+      if not empty app.visits:
+        if isNone app.path:
+          h4(class="text-center text-info"):
+            text "No path found!"
+        
+        else:
+          tdiv(class="d-flex justify-content-around"):
+            h5(class=""):
+              text "opened nodes: "
+              text %app.visits.len
+            h5(class=""):
+              text "time: "
+              text %app.benchmark
+              text "ms"
+
+    main(class="px-4 py-1"):
+      tdiv(class="d-flex justify-content-space-between flex-row"):
+        button(class = "btn btn-primary w-100 mx-3"):
+          text "Find Path"
+
+          proc onclick = 
+            let algo  = pathFindingAlgos[app.selectedAlgo]
+            timeit res:
+              let pack = algo(app.map, app.start .. app.goal)
             
+            app.benchmark = res
+            app.visits    = pack.visits
+            app.path      = pack.finalPath
+        
+        button(class = "btn btn-danger w-100 mx-3"):
+          text "Random"
 
+          proc onclick = 
+            resetPath()
 
-      tdiv(class="map"):
+            let treshold = rand 0.0 .. 0.3
+            for y, row in app.map:
+              for x, _ in row:
+
+                app.map[y][x] = 
+                  if   y in [0, app.map.height-1] or x in [0, row.len-1]: wall
+                  elif treshold < rand 0.0 .. 1.0:                        free
+                  else:                                                   wall
+
+    main(class="p-4 d-flex justify-content-center"):
+      tdiv(class="overflow-auto"):
         for y, row in app.map:
-          tdiv(class="d-block"):
+          tdiv(class="d-flex"):
             for x, cell in row:
               let 
                 loc  = (y, x)
                 indx = app.path.get(@[]).find loc
                 lbl  = 
                   if indx == -1: %""
-                  else:          %(indx+1)
+                  else:          %indx
                 cls  = 
                   if   loc  == app.start:   "cell-start"
                   elif loc  == app.goal:    "cell-goal"
                   elif indx != -1:          "cell-path"
-                  elif loc  in app.visited: "cell-visited"
+                  elif loc  in app.visits:  "cell-visited"
                   elif cell == wall:        "cell-filled"
                   else:                     "cell-empty"
 

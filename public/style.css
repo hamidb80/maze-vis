@@ -1,5 +1,4 @@
-
-.pointer{
+.pointer {
     cursor: pointer;
 }
 
@@ -7,25 +6,32 @@
     user-select: none;
 }
 
-.map-cell{
-    width: 50px;
-    height: 50px;
+.map-cell {
+    width: 40px;
+    height: 40px;
+    margin: 1px;
 }
-.cell-start{
+
+.cell-start {
     background-color: red;
 }
-.cell-goal{
-    background-color: green;
+
+.cell-goal {
+    background-color: lightgreen;
 }
-.cell-path{
-    background-color: blue;
+
+.cell-path {
+    background-color: lightblue;
 }
-.cell-visited{
+
+.cell-visited {
     background-color: pink;
 }
-.cell-filled{
+
+.cell-filled {
     background-color: black;
 }
-.cell-empty{
+
+.cell-empty {
     background-color: white;
 }

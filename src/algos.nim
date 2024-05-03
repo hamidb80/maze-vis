@@ -41,7 +41,7 @@ func popd(s: var seq) =
     ## delete the last index
     del s, s.high
 
-func empty[T](s: T): bool = 
+func empty*[T](s: T): bool = 
     let z = 
         when compiles(len s): len  s
         else:                 size s
@@ -51,14 +51,26 @@ func `+`(loc: Location, vec: Vector2): Location =
     (loc.row + vec.y, loc.col + vec.x)
 
 
-func initMap*[T](rows, cols: Positive, init: T): Map[T] =
-  newSeqWith rows:
-    newSeqWith cols, init
+func resize*(m: var Map, rows, cols: Positive) = 
+    setlen m, rows
+    for r in mitems m:
+        setlen r, cols
 
-func width(map: Map): Natural = 
+func initMap*[T](rows, cols: Positive, init: proc(row, col: int): T): Map[T] {.effectsOf: init.} =
+    resize result, rows, cols
+
+    for y in 0 ..< rows:
+        for x in 0 ..< cols:
+            result[y][x] = init(y, x)
+
+func initMap*[T](rows, cols: Positive, init: T): Map[T] {.effectsOf: init.} =
+    initMap rows, cols, (row, col) => init 
+
+
+func width*(map: Map): Natural = 
     len map[0]
 
-func height(map: Map): Natural = 
+func height*(map: Map): Natural = 
     len map
 
 func contains(map: Map, loc: Location): bool = 
