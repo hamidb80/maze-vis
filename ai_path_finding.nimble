@@ -10,7 +10,7 @@ bin           = @["ai_path_finding"]
 
 # Dependencies
 
-requires "nim >= 2.0.4"
+requires "nim >= 2.0.0"
 requires "karax"
 
 

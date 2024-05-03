@@ -4,10 +4,28 @@
 }
 
 .no-select {
-    /* pointer-events: none; */
+    user-select: none;
 }
 
 .map-cell{
     width: 50px;
     height: 50px;
+}
+.cell-start{
+    background-color: red;
+}
+.cell-goal{
+    background-color: green;
+}
+.cell-path{
+    background-color: blue;
+}
+.cell-visited{
+    background-color: pink;
+}
+.cell-filled{
+    background-color: black;
+}
+.cell-empty{
+    background-color: white;
 }

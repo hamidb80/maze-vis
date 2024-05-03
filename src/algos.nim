@@ -1,5 +1,4 @@
-import std/[options, sequtils, sets, hashes, deques, tables, algorithm, math, sugar, strutils]
-import binaryheap
+import std/[options, sequtils, sets, hashes, deques, tables, algorithm, math, sugar, strutils, heapqueue]
 
 # structures ------
 
@@ -20,8 +19,8 @@ type
         map: Map[Cell]
         journey: Journey
 
-    Path = seq[Location]
-    Journey = Slice[Location]
+    Path* = seq[Location]
+    Journey* = Slice[Location]
 
     ResultPack = object
         visits*: seq[Location]
@@ -66,7 +65,7 @@ func contains(map: Map, loc: Location): bool =
     loc.row in 0 ..< map.height and
     loc.col in 0 ..< map.width 
 
-func `[]`[T](map: Map[T], loc: Location): T = 
+func `[]`*[T](map: Map[T], loc: Location): T = 
     map[loc.row][loc.col]
 
 
@@ -205,13 +204,13 @@ func bfs*(map: Map[Cell], journey: Journey): ResultPack =
                     track[n] = curr
 
 
-func cmpPriorities(a, b: Frontier): int = 
-    cmp a.priority, b.priority
+func `<`(a, b: Frontier): bool = 
+    a.priority < b.priority
 
-proc aStar*(map: Map[Cell], journey: Journey): ResultPack = 
+func aStar*(map: Map[Cell], journey: Journey): ResultPack = 
     var
         track: Table[Location, Frontier]
-        queue = newHeap[Frontier](cmpPriorities)
+        queue = initHeapQueue[Frontier]()
         curr: Frontier = (journey.a, 0, 0)
 
     track[journey.a] = curr 
