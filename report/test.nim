@@ -1,6 +1,5 @@
-import std/[random, sequtils, monotimes, unittest, stats, tables, strutils]
+import std/[random, sequtils, monotimes, stats, strutils]
 import ../src/algos
-import print
 
 
 # random utils ---------------------------------------  
