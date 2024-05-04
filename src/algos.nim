@@ -22,7 +22,7 @@ type
     Path* = seq[Location]
     Journey* = Slice[Location]
 
-    ResultPack = object
+    ResultPack* = object
         visits*: seq[Location]
         finalPath*: Option[Path]
 
@@ -143,6 +143,9 @@ proc plot*(trip: Trip, rp: ResultPack): string =
                 elif cell == wall:            '#'
                 else:                         '.'
         add result, '\n'
+
+proc plot*(trip: Trip): string = 
+    plot trip, ResultPack()
 
 template unnamed(locs): untyped =
     cast[seq[(int, int)]](locs)

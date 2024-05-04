@@ -8,8 +8,9 @@ proc randomLocation(rows, cols: int): Location =
   (rand 0 ..< rows, rand 0 ..< cols)
 
 proc randomCell(row, col: int): Cell = 
-  if rand bool: free
-  else:         wall
+  let r = rand 0.0 .. 1.0
+  if 0.2 <= r: free
+  else       : wall
 
 proc transpose(matrix: seq[seq[float]]): seq[seq[float]] =
  let 
@@ -43,6 +44,7 @@ proc benchmark(times: Positive, tripGenerator: proc(): Trip): seq[seq[float]] =
 
   for n in 1..times:
     let t = tripGenerator()
+    # echo plot t
     add result, fns.mapit timeit (discard it(t.map, t.journey))
 
 when isMainModule:
