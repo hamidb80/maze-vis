@@ -1,6 +1,6 @@
-import std/[options, sequtils, sets, hashes, deques, tables, algorithm, math, sugar, strutils, heapqueue]
+import std/[options, sets, hashes, deques, tables, algorithm, math, sugar, strutils, heapqueue]
 
-# structures ------
+# structures ------------------------------------
 
 type
     Cell* = enum
@@ -15,9 +15,9 @@ type
     Location* = tuple
         row, col: int
 
-    Trip = object 
-        map: Map[Cell]
-        journey: Journey
+    Trip* = object 
+        map*: Map[Cell]
+        journey*: Journey
 
     Path* = seq[Location]
     Journey* = Slice[Location]
@@ -26,16 +26,16 @@ type
         visits*: seq[Location]
         finalPath*: Option[Path]
 
-    PathFindingFnWithStep* = proc(
+    PathFindingAlgo* = proc(
         map: Map[Cell], 
         journey: Journey,
-    ): ResultPack
+    ): ResultPack # {.nimcall.}
 
     Frontier = tuple
         loc: Location
         cost, priority: float
 
-# utils ------
+# utils ------------------------------------------
 
 func popd(s: var seq) = 
     ## delete the last index
@@ -63,7 +63,7 @@ func initMap*[T](rows, cols: Positive, init: proc(row, col: int): T): Map[T] {.e
         for x in 0 ..< cols:
             result[y][x] = init(y, x)
 
-func initMap*[T](rows, cols: Positive, init: T): Map[T] {.effectsOf: init.} =
+func initMap*[T: not proc](rows, cols: Positive, init: T): Map[T] {.effectsOf: init.} =
     initMap rows, cols, (row, col) => init 
 
 
@@ -83,7 +83,7 @@ func `[]`*[T](map: Map[T], loc: Location): T =
 func `[]=`*[T](map: var Map[T], loc: Location, val: T) = 
     map[loc.row][loc.col] = val
 
-# helpers ------
+# helpers ------------------------------------------
 
 const moves = [
     ( 0, -1).Vector2,
@@ -92,12 +92,9 @@ const moves = [
     (-1,  0),
 ]
 
-func canGo(
-    loc:  Location, 
-    map:  Map[Cell], 
-): bool =
-    loc      in    map  and 
-    map[loc] !=    wall    
+func canGo(loc:  Location, map:  Map[Cell]): bool =
+    loc      in map  and
+    map[loc] != wall
 
 iterator neighbors(loc: Location, map: Map[Cell]): Location = 
     for m in moves:
@@ -106,22 +103,14 @@ iterator neighbors(loc: Location, map: Map[Cell]): Location =
             yield n
 
 
-func manhattan*(node, goal: Location): int =
-    abs(node.col - goal.col) + abs(node.row - goal.row)
-
-func asTheCrowFlies*(node, goal: Location): float =
+func euclideanDistance*(node, goal: Location): float =
     sqrt(
         pow(float(node.col) - float(goal.col), 2) +
         pow(float(node.row) - float(goal.row), 2) )
 
-func chebyshev*(node, goal: Location): int =
-    max(
-        abs(node.col - goal.col), 
-        abs(node.row - goal.row))
+# debug --------------------------------------------
 
-# debug -----
-
-func initTrip(grid: string): Trip = 
+func initTrip*(grid: string): Trip = 
     let board = splitLines strip dedent grid
     setLen result.map, len board
     for y, row in board:
@@ -139,7 +128,7 @@ func initTrip(grid: string): Trip =
             else: 
                 raise newException(ValueError, "invalid char")   
 
-proc plot(trip: Trip, rp: ResultPack): string = 
+proc plot*(trip: Trip, rp: ResultPack): string = 
     result = newStringOfCap trip.map.height * (trip.map.width + 1)
     
     for y, row in trip.map:
@@ -158,7 +147,7 @@ proc plot(trip: Trip, rp: ResultPack): string =
 template unnamed(locs): untyped =
     cast[seq[(int, int)]](locs)
 
-# impl ------
+# impl ---------------------------------------------
 
 func dfsImpl(
     map: Map[Cell], 
@@ -198,8 +187,7 @@ func iddfs*(map: Map[Cell], journey: Journey): ResultPack =
             return
 
 
-func follow(tail, head: Location, 
-            track: proc(loc: Location): Location): Path {.effectsOf: track.} = 
+func backtrack(tail, head: Location, track: proc(loc: Location): Location): Path {.effectsOf: track.} = 
     add result, tail
     while result[^1] != head:
         add result, track result[^1]
@@ -219,7 +207,7 @@ func bfs*(map: Map[Cell], journey: Journey): ResultPack =
         add result.visits, curr
 
         if  curr == journey.b:
-            result.finalPath = some follow(journey.b, journey.a, l => track[l])
+            result.finalPath = some backtrack(journey.b, journey.a, l => track[l])
             return # early exit
         else:
             for n in curr.neighbors map:
@@ -245,16 +233,16 @@ func aStar*(map: Map[Cell], journey: Journey): ResultPack =
         add result.visits, curr.loc
 
         if  curr.loc == journey.b:
-            result.finalPath = some follow(journey.b, journey.a, l => track[l].loc)
+            result.finalPath = some backtrack(journey.b, journey.a, l => track[l].loc)
             return
         else:
             for next in curr.loc.neighbors map:
                 let newCost = track[curr.loc].cost + 1 # graph.cost(current, next)
                 if  next notin track or newCost < track[next].cost:
-                    push queue, (next, newCost, newCost + asTheCrowFlies(next, journey.b))
+                    push queue, (next, newCost, newCost + euclideanDistance(next, journey.b))
                     track[next] = curr
 
-# test ------
+# test -------------------------------------------- 
 
 when isMainModule:
     let trip = initTrip """
