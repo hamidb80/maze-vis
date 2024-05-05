@@ -67,15 +67,15 @@ func initMap*[T: not proc](rows, cols: Positive, init: T): Map[T] {.effectsOf: i
     initMap rows, cols, (row, col) => init 
 
 
-func width*(map: Map): Natural = 
+func cols*(map: Map): Natural = 
     len map[0]
 
-func height*(map: Map): Natural = 
+func rows*(map: Map): Natural = 
     len map
 
 func contains*(map: Map, loc: Location): bool = 
-    loc.row in 0 ..< map.height and
-    loc.col in 0 ..< map.width 
+    loc.row in 0 ..< map.rows and
+    loc.col in 0 ..< map.cols 
 
 func `[]`*[T](map: Map[T], loc: Location): T = 
     map[loc.row][loc.col]
@@ -85,8 +85,16 @@ func `[]=`*[T](map: var Map[T], loc: Location, val: T) =
 
 # helpers ------------------------------------------
 
-const moves = [
-    ( 0, -1).Vector2,
+type 
+    Direction = enum
+        up
+        right
+        down
+        left
+
+
+const moves: array[Direction, Vector2] = [
+    ( 0, -1),
     (+1,  0),
     ( 0, +1),
     (-1,  0),
@@ -129,7 +137,7 @@ func initTrip*(grid: string): Trip =
                 raise newException(ValueError, "invalid char")   
 
 proc plot*(trip: Trip, rp: ResultPack): string = 
-    result = newStringOfCap trip.map.height * (trip.map.width + 1)
+    result = newStringOfCap trip.map.rows * (trip.map.cols + 1)
     
     for y, row in trip.map:
         for x, cell in row:
@@ -181,10 +189,10 @@ func dfsImpl(map: Map[Cell], maxDepth: int, journey: Journey): ResultPack =
     dfsImpl map, maxDepth, journey.a, journey.b, seen, path, result
 
 func dfs*(map: Map[Cell], journey: Journey): ResultPack = 
-    dfsImpl map, map.width * map.height, journey
+    dfsImpl map, map.cols * map.rows, journey
 
 func iddfs*(map: Map[Cell], journey: Journey): ResultPack =
-    for d in 1 .. map.width * map.height:
+    for d in 1 .. map.cols * map.rows:
         result = dfsImpl(map, d, journey)
         if issome result.finalPath:
             return
