@@ -48,8 +48,7 @@ let pathFindingAlgos = toOrderedTable {
   %"DFS":   dfs,
   %"IDDFS": iddfs,
   %"BFS":   bfs,
-  %"A*":    aStar,
-}
+  %"A*":    aStar}
 
 # state management -----
 
@@ -57,7 +56,6 @@ var app = AppStates(
   selectedAlgo: "DFS",
   rows:         R,
   cols:         C,
-  trip:         randomTrip(R, C, 0.0, 1),
   tool:         putWall, 
   clicked:      false)
 
@@ -213,8 +211,8 @@ proc createDom: VNode =
           text "Clear"
 
           proc onclick = 
-            app.trip.map = initMap(app.rows, app.cols, free)
             resetPath()
+            app.trip.map = randomTrip(app.rows, app.cols, 0.0, 1).map
 
     main(class="p-4 d-flex justify-content-center"):
       tdiv(class="overflow-auto border border-3"):
@@ -241,4 +239,5 @@ proc createDom: VNode =
 
 when isMainModule:
   randomize()
+  app.trip = randomTrip(R, C, 0.0, 1)
   setRenderer createDom

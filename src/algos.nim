@@ -37,6 +37,13 @@ type
 
     CellGenerator[T] = proc(row, col, rows, cols: int): T
 
+    Direction = enum
+        up
+        right
+        down
+        left
+
+
 # utils ------------------------------------------
 
 func popd(s: var seq) = 
@@ -64,10 +71,6 @@ func initMap*[T](rows, cols: int, init: CellGenerator[T]): Map[T] {.effectsOf: i
     for y in 0 ..< rows:
         for x in 0 ..< cols:
             result[y][x] = init(y, x, rows, cols)
-
-func initMap*[T: not proc](rows, cols: int, init: T): Map[T] {.effectsOf: init.} =
-    initMap rows, cols, (row, col, rows, cols) => init 
-
 
 func cols*(map: Map): Natural = 
     len map[0]
@@ -106,20 +109,11 @@ proc randomTrip*(rows, cols: int, treshold: float, offset = 0): Trip =
 
 # helpers ------------------------------------------
 
-type 
-    Direction = enum
-        up
-        right
-        down
-        left
-
-
 const moves: array[Direction, Vector2] = [
     ( 0, -1),
     (+1,  0),
     ( 0, +1),
-    (-1,  0),
-]
+    (-1,  0)]
 
 func canGo(loc:  Location, map:  Map[Cell]): bool =
     loc      in map  and
@@ -180,7 +174,7 @@ proc plot*(trip: Trip, rp: ResultPack): string =
 proc plot*(trip: Trip): string = 
     plot trip, ResultPack()
 
-template unnamed(locs): untyped =
+template unnamed*(locs): untyped =
     cast[seq[(int, int)]](locs)
 
 # impl ---------------------------------------------
@@ -277,28 +271,3 @@ func aStar*(map: Map[Cell], journey: Journey): ResultPack =
                 if  next notin track or newCost < track[next].cost:
                     push queue, (next, newCost, newCost + euclideanDistance(next, journey.b))
                     track[next] = curr
-
-# test -------------------------------------------- 
-
-when isMainModule:
-    let trip = initTrip """
-        ..##...#.E..
-        .....#...##.
-        .....#....#.
-        .....#....#.
-        .....#....#.
-        .S...#.####.
-        ............
-    """
-    echo trip.journey
-
-    let  
-        d = dfs(  trip.map, trip.journey)
-        b = bfs(  trip.map, trip.journey)
-        a = aStar(trip.map, trip.journey)
-        i = iddfs(trip.map, trip.journey)
-
-    echo "DFS   \n", trip.plot d, unnamed d.visits
-    echo "IDDFS \n", trip.plot i, unnamed i.visits
-    echo "BFS   \n", trip.plot b, unnamed b.visits
-    echo "A*    \n", trip.plot a, unnamed a.visits
