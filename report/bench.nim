@@ -4,25 +4,15 @@ import ../src/algos
 
 # random utils ---------------------------------------  
 
-proc randomLocation(rows, cols: int): Location = 
-  (rand 0 ..< rows, rand 0 ..< cols)
-
-proc randomCell(row, col: int): Cell = 
-  let r = rand 0.0 .. 1.0
-  if 0.2 <= r: free
-  else       : wall
-
-proc transpose(matrix: seq[seq[float]]): seq[seq[float]] =
- let 
-  rows = matrix.len
-  cols = matrix[0].len
-
+proc transpose[T](matrix: seq[seq[T]]): seq[seq[T]] =
  # Initialize the transposed matrix
- result = newSeqWith(cols, newSeqWith(rows, 0.0))
+ result = newSeqWith(matrix.cols, 
+                    newSeqWith(matrix.rows, 
+                              0.0))
 
  # Fill the transposed matrix
- for i in 0 ..< rows:
-    for j in 0 ..< cols:
+ for i in 0 ..< matrix.rows:
+    for j in 0 ..< matrix.cols:
       result[j][i] = matrix[i][j]
 
 # time utils ---------------------------------------  
@@ -44,22 +34,14 @@ proc benchmark(times: Positive, tripGenerator: proc(): Trip): seq[seq[float]] =
 
   for n in 1..times:
     let t = tripGenerator()
-    # echo plot t
     add result, fns.mapit timeit (discard it(t.map, t.journey))
 
 when isMainModule:
   echo "matrix size, IDDFS, DFS, BFS, A*"
 
-  for n in 3 .. 200:
+  for n in 1 .. 200:
     proc tripGen: Trip = 
-      let 
-        rows  = n
-        cols  = n
-        start = randomLocation(rows, cols)
-        goal  = randomLocation(rows, cols)
-      
-      result.journey = start .. goal
-      result.map     = initMap(rows, cols, randomCell)
-
+      randomTrip n, n, rand 0.0 .. 0.3, 0
+    
     stderr.write n, "\n"
-    echo n, ", ", (benchmark(3, tripgen).transpose.mapit mean it).join ", "
+    echo n, ", ", (benchmark(30, tripgen).transpose.mapit mean it).join ", "
