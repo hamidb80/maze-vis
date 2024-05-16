@@ -1,4 +1,4 @@
-import std/[options, sets, hashes, deques, tables, algorithm, math, sugar, strutils, heapqueue, random]
+import std/[options, sets, hashes, deques, tables, algorithm, math, sugar, strutils, heapqueue, random, sequtils]
 
 # structures ------------------------------------
 
@@ -32,6 +32,7 @@ type
     ): ResultPack # {.nimcall.}
 
     Frontier = tuple
+        # index: int
         loc: Location
         cost, priority: float
 
@@ -56,8 +57,20 @@ func empty*[T](s: T): bool =
         else:                 size s
     0 == z
 
+# func `-`(vec: Vector2): Vector2 =
+#     (-vec.x, -vec.y)
+
 func `+`(loc: Location, vec: Vector2): Location = 
     (loc.row + vec.y, loc.col + vec.x)
+
+func `-`(a, b: Location): Location = 
+    (a.row - b.row, a.col - b.col)
+
+func `-`*[T](s: seq[T], v: T): seq[T] =
+    s.mapIt it - v
+
+func `-`*[T](s: Slice[T], v: T): Slice[T] =
+    s.a - v .. s.b - v
 
 
 func resize*(m: var Map, rows, cols: Positive) = 
@@ -125,10 +138,15 @@ iterator neighbors(loc: Location, map: Map[Cell]): Location =
         if n.canGo map:
             yield n
 
-func euclideanDistance*(node, goal: Location): float =
-    sqrt(
-        pow(float(node.col) - float(goal.col), 2) +
-        pow(float(node.row) - float(goal.row), 2) )
+func manhattanDistance*(a, b: Location): float =
+    toFloat:
+        abs(a.col - b.col) +
+        abs(a.row - b.row)
+
+func euclideanDistance*(a, b: Location): float =
+    sqrt:
+        pow(float(a.col) - float(b.col), 2) +
+        pow(float(a.row) - float(b.row), 2)
 
 # conventions ---------------------------------------------
 
@@ -155,6 +173,23 @@ func initTrip*(grid: string): Trip =
             else: 
                 raise newException(ValueError, "invalid char")   
 
+
+func crop*(p: Path, area: Slice[Location]): Path =
+    p.mapIt it - area.a
+
+func crop*(m: Map, area: Slice[Location]): Map =
+    let crows = m[area.a.row .. area.b.row]
+    crows.mapIt it[area.a.col .. area.b.col]
+
+func area*(points: seq[Location]): Slice[Location] =
+    result = points[0] .. points[0]
+    for p in points:
+        result.a.col = min(result.a.col, p.col)
+        result.a.row = min(result.a.row, p.row)
+        result.b.col = max(result.b.col, p.col)
+        result.b.row = max(result.b.row, p.row)
+
+
 proc plot*(trip: Trip, rp: ResultPack): string = 
     result = newStringOfCap trip.map.rows * (trip.map.cols + 1)
     
@@ -174,7 +209,14 @@ proc plot*(trip: Trip, rp: ResultPack): string =
 proc plot*(trip: Trip): string = 
     plot trip, ResultPack()
 
-template unnamed*(locs): untyped =
+
+template unnamed*(loc: Location): untyped =
+    cast[(int, int)](loc)
+
+template unnamed*(j: Slice[Location]): untyped =
+    (unnamed j.a) .. (unnamed j.b)
+
+template unnamed*(locs: seq[Location]): untyped =
     cast[seq[(int, int)]](locs)
 
 # impl ---------------------------------------------
@@ -196,10 +238,10 @@ func dfsImpl(
     elif 0 < remainingSteps:
         for loc in current.neighbors map:
             if  loc notin seen:
-                add     path, loc
-                dfsImpl map, remainingSteps - 1, loc, goal, seen, path, result
+                add       path, loc
+                dfsImpl   map, remainingSteps - 1, loc, goal, seen, path, result
                 if issome result.finalPath: return
-                popd    path
+                popd      path
 
 func dfsImpl(map: Map[Cell], maxDepth: int, journey: Journey): ResultPack = 
     var
@@ -251,6 +293,7 @@ func `<`(a, b: Frontier): bool =
 
 func aStar*(map: Map[Cell], journey: Journey): ResultPack = 
     var
+        # i     = 0
         track: Table[Location, Frontier]
         queue = initHeapQueue[Frontier]()
         curr: Frontier = (journey.a, 0, 0)
@@ -259,6 +302,8 @@ func aStar*(map: Map[Cell], journey: Journey): ResultPack =
     push queue,        curr
 
     while not empty queue: 
+        # inc i
+        # debugecho ">> ", i, ' ', queue
         curr = pop queue
         add result.visits, curr.loc
 
@@ -267,7 +312,11 @@ func aStar*(map: Map[Cell], journey: Journey): ResultPack =
             return
         else:
             for next in curr.loc.neighbors map:
-                let newCost = track[curr.loc].cost + 1 # graph.cost(current, next)
-                if  next notin track or newCost < track[next].cost:
-                    push queue, (next, newCost, newCost + euclideanDistance(next, journey.b))
+                let 
+                    h = manhattanDistance(next, journey.b)
+                    g = curr.cost + 1 # graph.cost(current, next)
+                    f = h + g
+
+                if  next notin track or g < track[next].cost:
+                    push queue, (next, g, f)
                     track[next] = curr
