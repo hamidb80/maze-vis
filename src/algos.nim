@@ -1,4 +1,4 @@
-import std/[options, sets, hashes, deques, tables, algorithm, math, sugar, strutils, heapqueue]
+import std/[options, sets, hashes, deques, tables, algorithm, math, sugar, strutils, heapqueue, random]
 
 # structures ------------------------------------
 
@@ -35,6 +35,8 @@ type
         loc: Location
         cost, priority: float
 
+    CellGenerator[T] = proc(row, col, rows, cols: int): T
+
 # utils ------------------------------------------
 
 func popd(s: var seq) = 
@@ -56,15 +58,15 @@ func resize*(m: var Map, rows, cols: Positive) =
     for r in mitems m:
         setlen r, cols
 
-func initMap*[T](rows, cols: Positive, init: proc(row, col: int): T): Map[T] {.effectsOf: init.} =
+func initMap*[T](rows, cols: int, init: CellGenerator[T]): Map[T] {.effectsOf: init.} =
     resize result, rows, cols
 
     for y in 0 ..< rows:
         for x in 0 ..< cols:
-            result[y][x] = init(y, x)
+            result[y][x] = init(y, x, rows, cols)
 
-func initMap*[T: not proc](rows, cols: Positive, init: T): Map[T] {.effectsOf: init.} =
-    initMap rows, cols, (row, col) => init 
+func initMap*[T: not proc](rows, cols: int, init: T): Map[T] {.effectsOf: init.} =
+    initMap rows, cols, (row, col, rows, cols) => init 
 
 
 func cols*(map: Map): Natural = 
@@ -82,6 +84,25 @@ func `[]`*[T](map: Map[T], loc: Location): T =
 
 func `[]=`*[T](map: var Map[T], loc: Location, val: T) = 
     map[loc.row][loc.col] = val
+
+
+proc randomLocation*(rows, cols: Positive, offset = 1): Location = 
+  (rand offset ..< rows-offset, rand offset ..< cols-offset)
+
+proc cellGenerator(treshold: float, offset = 0): auto =
+  proc (row, col, rows, cols: int): Cell = 
+    let r = rand 0.0 .. 1.0
+    if   row < offset or row >= rows-offset: wall
+    elif col < offset or col >= cols-offset: wall
+    elif treshold < r:                       free
+    else:                                    wall
+
+proc randomTrip*(rows, cols: int, treshold: float, offset = 0): Trip = 
+  Trip(
+    journey: randomLocation(rows, cols, offset) .. randomLocation(rows, cols, offset),
+    map: initMap(rows, cols, 
+                cellGenerator(rand 0.0 .. treshold, offset)))
+  
 
 # helpers ------------------------------------------
 
@@ -257,12 +278,12 @@ func aStar*(map: Map[Cell], journey: Journey): ResultPack =
 
 when isMainModule:
     let trip = initTrip """
-        ..#......E..
+        ..##...#.E..
         .....#...##.
-        ..........#.
-        ..........#.
-        ..........#.
-        .S...######.
+        .....#....#.
+        .....#....#.
+        .....#....#.
+        .S...#.####.
         ............
     """
     echo trip.journey
@@ -274,6 +295,6 @@ when isMainModule:
         i = iddfs(trip.map, trip.journey)
 
     echo "DFS   \n", trip.plot d, unnamed d.visits
+    echo "IDDFS \n", trip.plot i, unnamed i.visits
     echo "BFS   \n", trip.plot b, unnamed b.visits
     echo "A*    \n", trip.plot a, unnamed a.visits
-    echo "IDDFS \n", trip.plot i, unnamed i.visits

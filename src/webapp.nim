@@ -38,10 +38,6 @@ template timeit(res, body): untyped =
   let t2 = Date.now
   let res = t2 - t1
 
-# utils -----
-
-proc randomLocation(rows, cols: Positive, offset = 1): Location = 
-  (rand offset ..< rows-offset, rand offset ..< cols-offset)
 
 # globals -----
 
@@ -75,20 +71,16 @@ proc cleanErrors =
   for loc in [app.start, app.goal]:
     app.map[loc] = free
 
-proc randomJourney = 
-  app.start = randomLocation(app.rows, app.cols) 
-  app.goal = randomLocation(app.rows, app.cols) 
-  cleanErrors()
-
 proc regenerateMap = 
-  proc fromPast(row, col: int): Cell = 
+  proc fromPast(row, col, rows, cols: int): Cell = 
     let loc = (row, col)
     if loc in app.map: app.map[loc]
     else:              free
 
   app.map = initMap[Cell](app.rows, app.cols, fromPast)
   if app.start notin app.map or app.goal notin app.map:
-    randomJourney()
+    app.start = randomLocation(app.rows, app.cols, 1)
+    app.goal  = randomLocation(app.rows, app.cols, 1)
     
 proc resetPath = 
     reset app.visits
@@ -216,16 +208,10 @@ proc createDom: VNode =
           text "Random"
 
           proc onclick = 
-            let treshold = rand 0.0 .. 0.3
-
-            proc cellValue(row, col: int): Cell = 
-              if   row in [0, app.rows-1]:      wall
-              elif col in [0, app.cols-1]:      wall
-              elif treshold < rand 0.0 .. 1.0:  free
-              else:                             wall
-
-            app.map = initMap(app.rows, app.cols, cellValue)
-            randomJourney()
+            let t = randomTrip( app.rows, app.cols, rand 0.0 .. 0.3)
+            app.map = t.map
+            app.start = t.journey.a
+            app.goal = t.journey.b
             resetPath()
 
         button(class = "btn btn-warning w-100 mx-3"):
