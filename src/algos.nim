@@ -294,11 +294,11 @@ func `<`(a, b: Frontier): bool =
 func aStar*(map: Map[Cell], journey: Journey): ResultPack = 
     var
         # i     = 0
-        track: Table[Location, Frontier]
+        track: Table[Location, Frontier] # next -> last
         queue = initHeapQueue[Frontier]()
         curr: Frontier = (journey.a, 0, 0)
 
-    track[journey.a] = curr 
+    track[journey.a] = curr # self 
     push queue,        curr
 
     while not empty queue: 
