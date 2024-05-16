@@ -131,11 +131,15 @@ iterator neighbors(loc: Location, map: Map[Cell]): Location =
         if n.canGo map:
             yield n
 
-
 func euclideanDistance*(node, goal: Location): float =
     sqrt(
         pow(float(node.col) - float(goal.col), 2) +
         pow(float(node.row) - float(goal.row), 2) )
+
+# conventions ---------------------------------------------
+
+func `~~>`*(t: Trip, f: PathFindingAlgo): ResultPack {.effectsOf: f.} = 
+    f t.map, t.journey
 
 # debug --------------------------------------------
 
@@ -167,10 +171,10 @@ proc plot*(trip: Trip, rp: ResultPack): string =
                 if   p == trip.journey.a:     'S'
                 elif p == trip.journey.b:     'E'
                 elif p in rp.visits: 
-                    if p in rp.finalPath.get: '*'
-                    else:                     'v'
+                    if p in rp.finalPath.get: '_'
+                    else:                     '.'
                 elif cell == wall:            '#'
-                else:                         '.'
+                else:                         ' '
         add result, '\n'
 
 proc plot*(trip: Trip): string = 

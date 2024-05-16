@@ -18,12 +18,10 @@ type
     tool:         Tool
 
     rows, cols:   Positive
-    map:          Map[Cell]
+    trip: Trip
 
     hoverCell:    Option[Location]
     clicked:      bool
-
-    start, goal:  Location
     visits:       seq[Location]
     path:         Option[Path]
     benchmark:    Natural
@@ -40,8 +38,6 @@ template timeit(res, body): untyped =
 
 
 # globals -----
-
-randomize()
 
 const 
   C = 10
@@ -61,30 +57,32 @@ var app = AppStates(
   selectedAlgo: "DFS",
   rows:         R,
   cols:         C,
-  map:          initMap(R, C, free),
+  trip:         randomTrip(R, C, 0.0, 1),
   tool:         putWall, 
-  start:        randomLocation(R, C), 
-  goal:         randomLocation(R, C),
   clicked:      false)
-
-proc cleanErrors = 
-  for loc in [app.start, app.goal]:
-    app.map[loc] = free
 
 proc regenerateMap = 
   proc fromPast(row, col, rows, cols: int): Cell = 
     let loc = (row, col)
-    if loc in app.map: app.map[loc]
+    if loc in app.trip.map: app.trip.map[loc]
     else:              free
 
-  app.map = initMap[Cell](app.rows, app.cols, fromPast)
-  if app.start notin app.map or app.goal notin app.map:
-    app.start = randomLocation(app.rows, app.cols, 1)
-    app.goal  = randomLocation(app.rows, app.cols, 1)
+  app.trip.map = initMap[Cell](app.rows, app.cols, fromPast)
+  if app.trip.journey.a notin app.trip.map or app.trip.journey.b notin app.trip.map:
+    app.trip.journey.a = randomLocation(app.rows, app.cols, 1)
+    app.trip.journey.b  = randomLocation(app.rows, app.cols, 1)
     
 proc resetPath = 
     reset app.visits
     reset app.path
+
+proc cleanJourneyErrors = 
+  for p in [app.trip.journey.a, app.trip.journey.b]:
+    app.trip.map[p] = free
+
+proc setTrip(t: Trip) = 
+  app.trip = t
+  cleanJourneyErrors()
 
 # UI -----
 
@@ -130,10 +128,10 @@ proc cellComponent(row, col: int, cls, lbl: cstring, action: proc(loc: Location)
 proc createDom: VNode =
   proc action(l: Location) = 
     case app.tool
-    of putWall:  app.map[l.row][l.col] = wall
-    of erase:    app.map[l.row][l.col] = free
-    of putStart: app.start             = l
-    of putGoal:  app.goal              = l
+    of putWall:  app.trip.map[l.row][l.col] = wall
+    of erase:    app.trip.map[l.row][l.col] = free
+    of putStart: app.trip.journey.a         = l
+    of putGoal:  app.trip.journey.b         = l
     resetPath()
 
   buildHtml tdiv:
@@ -198,7 +196,7 @@ proc createDom: VNode =
           proc onclick = 
             let algo  = pathFindingAlgos[app.selectedAlgo]
             timeit time:
-              let pack = algo(app.map, app.start .. app.goal)
+              let pack = algo(app.trip.map, app.trip.journey)
             
             app.benchmark = time
             app.visits    = pack.visits
@@ -208,22 +206,19 @@ proc createDom: VNode =
           text "Random"
 
           proc onclick = 
-            let t = randomTrip( app.rows, app.cols, rand 0.0 .. 0.3)
-            app.map = t.map
-            app.start = t.journey.a
-            app.goal = t.journey.b
             resetPath()
+            setTrip randomTrip(app.rows, app.cols, rand 0.0 .. 0.3, 1)
 
         button(class = "btn btn-warning w-100 mx-3"):
           text "Clear"
 
           proc onclick = 
-            app.map = initMap(app.rows, app.cols, free)
+            app.trip.map = initMap(app.rows, app.cols, free)
             resetPath()
 
     main(class="p-4 d-flex justify-content-center"):
-      tdiv(class="overflow-auto"):
-        for y, row in app.map:
+      tdiv(class="overflow-auto border border-3"):
+        for y, row in app.trip.map:
           tdiv(class="d-flex"):
             for x, cell in row:
               let 
@@ -233,16 +228,17 @@ proc createDom: VNode =
                   if indx == -1: %""
                   else:          %indx
                 cls  = 
-                  if   loc  == app.start:   "cell-start"
-                  elif loc  == app.goal:    "cell-goal"
-                  elif indx != -1:          "cell-path"
-                  elif loc  in app.visits:  "cell-visited"
-                  elif cell == wall:        "cell-filled"
-                  else:                     "cell-empty"
+                  if   loc  == app.trip.journey.a: "cell-start"
+                  elif loc  == app.trip.journey.b: "cell-goal"
+                  elif indx != -1:                 "cell-path"
+                  elif loc  in app.visits:         "cell-visited"
+                  elif cell == wall:               "cell-filled"
+                  else:                            "cell-empty"
 
               cellComponent y, x, %cls, lbl, action
 
 # entry point -----
 
 when isMainModule:
+  randomize()
   setRenderer createDom
